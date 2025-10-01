@@ -31,6 +31,10 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
+    - name: Kill any running Lumin processes
+      run: |
+        taskkill /f /im Lumin.exe /t 2>$null || echo "No Lumin processes to kill"
+
     - name: Clean and Build Windows
       run: |
         flutter clean
@@ -40,8 +44,8 @@ jobs:
 
     - name: Create Windows MSI installer
       run: |
-        flutter pub run inno_bundle:create
-        move build\windows\runner\Release\lumin-windows-${{ github.run_number }}.msi build\lumin-windows-${{ github.run_number }}.msi
+        flutter pub run inno_bundle
+        move build\windows\runner\Release\lumin-windows-*.msi build\lumin-windows-${{ github.run_number }}.msi
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
