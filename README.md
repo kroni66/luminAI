@@ -1,4 +1,6 @@
-# browser2
+# Lumin
+
+A modern, privacy-focused browser built with Flutter featuring AI-powered assistance and seamless in-app updates.
 
 A new Flutter project.
 
