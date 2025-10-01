@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:archive/archive.dart';
 
 class ReleaseInfo {
   final String tagName;
@@ -211,104 +210,26 @@ class UpdateService {
   }
 
   Future<bool> _installWindowsUpdate(String filePath) async {
-    // For Windows, we'll extract the zip and replace the current executable
-    // This is a simplified approach - in a real app, you'd want more sophisticated
-    // update logic with backup and rollback capabilities
-
-    final appDir = Directory.current.path;
-    final backupDir = path.join(appDir, 'backup');
-    final tempDir = path.join(appDir, 'temp_update');
-
+    // For Windows, run the MSI installer which will handle the update automatically
+    // The MSI installer is configured to restart the app after installation
     try {
-      // Create backup directory if it doesn't exist
-      if (!await Directory(backupDir).exists()) {
-        await Directory(backupDir).create(recursive: true);
-      }
+      // Run the MSI installer with silent installation flags
+      final result = await Process.run('msiexec.exe', [
+        '/i',
+        filePath,
+        '/quiet',
+        '/norestart',
+        '/l*v',
+        'install.log'
+      ]);
 
-      // Create temp directory for extraction
-      if (await Directory(tempDir).exists()) {
-        await Directory(tempDir).delete(recursive: true);
-      }
-      await Directory(tempDir).create(recursive: true);
-
-      // Extract the zip file
-      final archive = ZipDecoder().decodeBytes(await File(filePath).readAsBytes());
-      for (final file in archive) {
-        final filename = file.name;
-        if (file.isFile) {
-          final data = file.content as List<int>;
-          final extractedFile = File(path.join(tempDir, filename));
-          await extractedFile.create(recursive: true);
-          await extractedFile.writeAsBytes(data);
-        } else {
-          final dir = Directory(path.join(tempDir, filename));
-          await dir.create(recursive: true);
-        }
-      }
-
-      // Find the main executable in the extracted files
-      final exeFiles = await _findExeFiles(tempDir);
-      if (exeFiles.isEmpty) {
-        return false;
-      }
-
-      // Assume the first exe file is the main executable
-      final newExePath = exeFiles.first;
-      final exeName = path.basename(newExePath);
-      final currentExePath = path.join(appDir, exeName);
-
-      // Backup current executable
-      final backupExePath = path.join(backupDir, '$exeName.backup');
-      if (await File(currentExePath).exists()) {
-        await File(currentExePath).copy(backupExePath);
-      }
-
-      // Copy new executable (this might fail if the app is running)
-      try {
-        await File(newExePath).copy(currentExePath);
-      } catch (e) {
-        // If direct copy fails, create an update script for next startup
-        await _createUpdateScript(appDir, newExePath, currentExePath);
-        return true; // Return true since script will handle it
-      }
-
-      // Clean up temp directory
-      await Directory(tempDir).delete(recursive: true);
-
-      return true;
+      // MSI installer will handle the app restart automatically due to run_after_install: true
+      return result.exitCode == 0;
     } catch (e) {
-      // Clean up on error
-      if (await Directory(tempDir).exists()) {
-        await Directory(tempDir).delete(recursive: true);
-      }
       return false;
     }
   }
 
-  Future<List<String>> _findExeFiles(String directory) async {
-    final exeFiles = <String>[];
-    final dir = Directory(directory);
-
-    await for (final entity in dir.list(recursive: true)) {
-      if (entity is File && entity.path.toLowerCase().endsWith('.exe')) {
-        exeFiles.add(entity.path);
-      }
-    }
-
-    return exeFiles;
-  }
-
-  Future<void> _createUpdateScript(String appDir, String sourcePath, String targetPath) async {
-    final scriptPath = path.join(appDir, 'update.bat');
-    final script = '''
-@echo off
-timeout /t 2 /nobreak > nul
-copy "$sourcePath" "$targetPath" /Y
-del "%~f0"
-''';
-
-    await File(scriptPath).writeAsString(script);
-  }
 
   Future<bool> _installMacosUpdate(String filePath) async {
     // Similar to Windows - extract and replace
