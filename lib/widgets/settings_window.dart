@@ -702,7 +702,7 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
     if (await File(updateScriptPath).exists()) {
       // Run the update script and exit
       try {
-        final result = await Process.run(updateScriptPath, [], workingDirectory: appDir);
+        await Process.run(updateScriptPath, [], workingDirectory: appDir);
         // The script will handle file replacement, then we exit
         await Future.delayed(const Duration(milliseconds: 500));
       } catch (e) {
