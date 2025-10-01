@@ -41,7 +41,7 @@ jobs:
     - name: Create Windows release archive
       run: |
         cd build\windows\x64\runner\Release
-        Compress-Archive -Path * -DestinationPath build\windows\x64\runner\Release\lumin-windows-${{ github.run_number }}.zip
+        Compress-Archive -Path * -DestinationPath ..\..\..\..\lumin-windows-${{ github.run_number }}.zip
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
