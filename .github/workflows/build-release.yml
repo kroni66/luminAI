@@ -55,7 +55,7 @@ jobs:
         flutter pub run inno_bundle --sign-tool-name signtool --sign-tool-params "/fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT"
         move build\windows\x64\installer\Release\*.exe build\lumin-windows-${{ github.run_number }}.exe
 
-    - name: Alternative: Sign the installer manually if inno_bundle signing fails
+    - name: "Alternative: Sign the installer manually if inno_bundle signing fails"
       run: |
         # If inno_bundle signing doesn't work, sign the installer manually
         if (Test-Path "build\lumin-windows-${{ github.run_number }}.exe") {
