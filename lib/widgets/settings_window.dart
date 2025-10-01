@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:heroicons_flutter/heroicons_flutter.dart';
+import 'package:path/path.dart' as path;
 import '../services/ollama_service.dart';
 import '../services/openrouter_service.dart';
 import '../services/adblock_service.dart';
@@ -690,6 +692,28 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
     }
   }
 
+  Future<void> _handleUpdateCompletion() async {
+    final appDir = Directory.current.path;
+    final updateScriptPath = path.join(appDir, 'update.bat');
+
+    // Wait a moment for UI to update
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (await File(updateScriptPath).exists()) {
+      // Run the update script and exit
+      try {
+        final result = await Process.run(updateScriptPath, [], workingDirectory: appDir);
+        // The script will handle file replacement, then we exit
+        await Future.delayed(const Duration(milliseconds: 500));
+      } catch (e) {
+        // If script fails, just exit anyway since installation was successful
+      }
+    }
+
+    // Exit the application to complete the update
+    exit(0);
+  }
+
   Future<void> _checkForUpdates() async {
     setState(() {
       _isCheckingForUpdates = true;
@@ -752,8 +776,11 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
         setState(() {
           _isDownloadingUpdate = false;
           if (success) {
-            _updateStatus = 'Update installed successfully. Please restart the application.';
+            _updateStatus = 'Update installed successfully. The application will now restart.';
             _updateAvailable = false;
+
+            // Check if update script exists and run it, then exit app
+            _handleUpdateCompletion();
           } else {
             _updateStatus = 'Failed to install update';
           }
