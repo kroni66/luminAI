@@ -101,7 +101,10 @@ inno_bundle:
   run_after_install: true
   install_dir: "{autopf}\\Lumin"
   installer_file_name: "lumin-windows-{version}.exe"
+  # Code signing configuration (will be overridden by workflow)
   sign_tool: signtool
+  sign_tool_params: "/fd SHA256 /t http://timestamp.digicert.com"
+
 
 
 

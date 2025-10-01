@@ -38,10 +38,29 @@ jobs:
         flutter doctor -v
         flutter build windows --release
 
-    - name: Create Windows installer
+    - name: Create self-signed certificate for code signing
       run: |
-        flutter pub run inno_bundle
+        # Create a self-signed certificate for code signing
+        $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=LuminAI Developer" -KeyUsage DigitalSignature -KeyLength 2048 -CertStoreLocation "Cert:\CurrentUser\My" -NotAfter (Get-Date).AddYears(1)
+        $thumbprint = $cert.Thumbprint
+        echo "CERT_THUMBPRINT=$thumbprint" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+        # Export certificate for backup
+        $certPath = "$env:TEMP\luminai_cert.pfx"
+        Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$thumbprint" -FilePath $certPath -Password (ConvertTo-SecureString -String "password123" -Force -AsPlainText)
+
+    - name: Create Windows installer with signing
+      run: |
+        # Use inno_bundle with signing parameters
+        flutter pub run inno_bundle --sign-tool-name signtool --sign-tool-params "/fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT"
         move build\windows\x64\installer\Release\*.exe build\lumin-windows-${{ github.run_number }}.exe
+
+    - name: Alternative: Sign the installer manually if inno_bundle signing fails
+      run: |
+        # If inno_bundle signing doesn't work, sign the installer manually
+        if (Test-Path "build\lumin-windows-${{ github.run_number }}.exe") {
+          signtool sign /fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT "build\lumin-windows-${{ github.run_number }}.exe"
+        }
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
