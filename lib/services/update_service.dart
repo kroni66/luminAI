@@ -215,7 +215,7 @@ class UpdateService {
     try {
       // Run the installer with silent installation flags
       final result = await Process.run(filePath, [
-        '/VERYSILENT',  // Silent installation
+        '/SILENT',  // Silent installation
         '/SUPPRESSMSGBOXES',  // Suppress message boxes
         '/NORESTART',   // Don't restart automatically (installer handles this)
         '/LOG=install.log'  // Create log file
