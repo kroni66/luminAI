@@ -31,10 +31,6 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Kill any running Lumin processes
-      run: |
-        taskkill /f /im Lumin.exe /t 2>$null || echo "No Lumin processes to kill"
-
     - name: Clean and Build Windows
       run: |
         flutter clean
