@@ -51,8 +51,9 @@ jobs:
 
     - name: Create Windows installer with signing
       run: |
-        # Use inno_bundle with signing parameters
-        flutter pub run inno_bundle --sign-tool-name signtool --sign-tool-params "/fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT"
+        # Use inno_bundle with separate signing parameters
+        # $f is the filename placeholder that Inno Setup replaces
+        flutter pub run inno_bundle --sign-tool-name signtool --sign-tool-command sign --sign-tool-params "/fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT `$f"
         move build\windows\x64\installer\Release\*.exe build\lumin-windows-${{ github.run_number }}.exe
 
     - name: "Alternative: Sign the installer manually if inno_bundle signing fails"
