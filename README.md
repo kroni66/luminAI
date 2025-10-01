@@ -5,7 +5,7 @@ A modern, privacy-focused browser built with Flutter featuring AI-powered assist
 A new Flutter project.
 
 ## Getting Started
-
+dgdfgdffgfd
 This project is a starting point for a Flutter application.
 
 A few resources to get you started if this is your first Flutter project:
