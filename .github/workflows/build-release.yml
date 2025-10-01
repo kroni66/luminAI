@@ -1,0 +1,127 @@
+name: Build Release
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Windows
+      run: flutter build windows --release
+
+    - name: Create Windows release archive
+      run: |
+        cd build\windows\x64\runner\Release
+        Compress-Archive -Path * -DestinationPath ..\..\..\..\lumin-windows-${{ github.run_number }}.zip
+
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumin-windows-${{ github.run_number }}
+        path: lumin-windows-${{ github.run_number }}.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build macOS
+      run: flutter build macos --release
+
+    - name: Create macOS app bundle
+      run: |
+        cd build/macos/Build/Products/Release
+        ditto -c -k --keepParent Lumin.app ../../../lumin-macos-${{ github.run_number }}.zip
+
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumin-macos-${{ github.run_number }}
+        path: build/macos/lumin-macos-${{ github.run_number }}.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev
+        flutter pub get
+
+    - name: Build Linux
+      run: flutter build linux --release
+
+    - name: Create Linux release archive
+      run: |
+        cd build/linux/x64/release/bundle
+        tar -czf ../../../lumin-linux-${{ github.run_number }}.tar.gz *
+
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumin-linux-${{ github.run_number }}
+        path: lumin-linux-${{ github.run_number }}.tar.gz
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.run_number }}
+        name: Release ${{ github.run_number }}
+        body: |
+          Automatic release build ${{ github.run_number }}
+
+          ## Changes
+          - Automated build from commit ${{ github.sha }}
+
+          ## Downloads
+          - Windows: lumin-windows-${{ github.run_number }}.zip
+          - macOS: lumin-macos-${{ github.run_number }}.zip
+          - Linux: lumin-linux-${{ github.run_number }}.tar.gz
+        files: |
+          lumin-windows-*/lumin-windows-${{ github.run_number }}.zip
+          lumin-macos-*/lumin-macos-${{ github.run_number }}.zip
+          lumin-linux-*/lumin-linux-${{ github.run_number }}.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

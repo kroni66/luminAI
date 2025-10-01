@@ -1,0 +1,1 @@
+Lumin-x86_64-1.0.0+1-Installer.exe /silent
