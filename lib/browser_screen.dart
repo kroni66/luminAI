@@ -39,6 +39,7 @@ import 'services/browser_automation_service.dart';
 import 'services/function_calling_service.dart';
 import 'services/screenshot_manager.dart';
 import 'services/update_service.dart';
+import 'services/notification_service.dart';
 import 'widgets/hover_preview_widget.dart';
 import 'widgets/screenshot_overlay.dart';
 import 'widgets/screenshot_preview_dialog.dart';
@@ -166,6 +167,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
   // Update state
   bool _updateAvailable = false;
+  bool _updateDownloaded = false;
 
   void _showSuggestions(List<HistoryEntry> suggestions, String query) {
     setState(() {
@@ -534,6 +536,42 @@ class _BrowserScreenState extends State<BrowserScreen> {
     });
   }
 
+  Future<void> _autoDownloadUpdate(ReleaseInfo release) async {
+    try {
+      final downloadUrl = await _updateService.getDownloadUrlForCurrentPlatform();
+
+      if (downloadUrl == null) {
+        debugPrint('No download URL available for auto-download');
+        return;
+      }
+
+      final filePath = await _updateService.downloadUpdate(
+        downloadUrl,
+        (progress) {
+          // Update progress if needed for background download
+          debugPrint('Auto-download progress: ${(progress * 100).toStringAsFixed(1)}%');
+        },
+      );
+
+      if (filePath != null) {
+        // Show notification that update was downloaded
+        await NotificationService.showUpdateDownloadedNotification();
+
+        // Update UI state
+        setState(() {
+          _updateDownloaded = true;
+        });
+
+        debugPrint('Auto-download completed: $filePath');
+        // Note: Installation still requires user action for safety
+      } else {
+        debugPrint('Auto-download failed');
+      }
+    } catch (e) {
+      debugPrint('Error during auto-download: $e');
+    }
+  }
+
   Future<void> _checkForUpdates() async {
     try {
       final result = await _updateService.checkForUpdates();
@@ -548,12 +586,14 @@ class _BrowserScreenState extends State<BrowserScreen> {
 
         // Show notification if enabled
         if (_settingsManager.showUpdateNotifications) {
-          // TODO: Show system notification
+          await NotificationService.showUpdateAvailableNotification(
+            result.latestRelease!.version,
+          );
         }
 
         // Auto-download if enabled
         if (_settingsManager.autoDownloadUpdates) {
-          // TODO: Implement auto-download
+          _autoDownloadUpdate(result.latestRelease!);
         }
       }
     } catch (e) {
@@ -665,6 +705,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         showUpdateNotifications: _settingsManager.showUpdateNotifications,
         lastUpdateCheck: _settingsManager.lastUpdateCheck,
         updateService: _updateService,
+        updateDownloaded: _updateDownloaded,
         onSettingsChanged: _updateScrollSettings,
         onScrollPhysicsChanged: _updateScrollPhysics,
         onThemeSettingsChanged: _updateThemeSettings,

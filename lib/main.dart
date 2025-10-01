@@ -7,6 +7,7 @@ import 'browser_screen.dart';
 import 'services/settings_manager.dart';
 import 'services/ollama_service.dart';
 import 'services/adblock_service.dart';
+import 'services/notification_service.dart';
 import 'database_helper.dart';
 
 void main(List<String> args) async {
@@ -14,6 +15,9 @@ void main(List<String> args) async {
 
   // Initialize database and settings
   final dbHelper = DatabaseHelper();
+
+  // Initialize notification service
+  await NotificationService.initialize();
 
   // Initialize services
   final ollamaService = OllamaService();

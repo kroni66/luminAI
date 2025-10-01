@@ -32,6 +32,7 @@ class SettingsWindow extends StatefulWidget {
   final bool showUpdateNotifications;
   final DateTime? lastUpdateCheck;
   final UpdateService updateService;
+  final bool updateDownloaded;
   final void Function(double scrollSpeed, bool smoothScrolling) onSettingsChanged;
   final void Function(double friction, double deceleration, double minVelocity, double maxVelocity) onScrollPhysicsChanged;
   final void Function(AppTheme theme) onThemeSettingsChanged;
@@ -65,6 +66,7 @@ class SettingsWindow extends StatefulWidget {
     required this.showUpdateNotifications,
     required this.lastUpdateCheck,
     required this.updateService,
+    required this.updateDownloaded,
     required this.onSettingsChanged,
     required this.onScrollPhysicsChanged,
     required this.onThemeSettingsChanged,
@@ -113,6 +115,7 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
   bool _isCheckingForUpdates = false;
   bool _isDownloadingUpdate = false;
   bool _updateAvailable = false;
+  bool _updateDownloaded = false;
   ReleaseInfo? _latestRelease;
   String _updateStatus = '';
   double _downloadProgress = 0.0;
@@ -139,6 +142,7 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
     _autoDownloadUpdates = widget.autoDownloadUpdates;
     _showUpdateNotifications = widget.showUpdateNotifications;
     _lastUpdateCheck = widget.lastUpdateCheck;
+    _updateDownloaded = widget.updateDownloaded;
 
     _tabController = TabController(length: 5, vsync: this); // Changed from 4 to 5 tabs
     _baseUrlController.text = _ollamaBaseUrl;
@@ -1376,14 +1380,18 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _updateAvailable
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.white.withOpacity(0.05),
+                color: _updateDownloaded
+                    ? Colors.blue.withOpacity(0.1)
+                    : _updateAvailable
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.white.withOpacity(0.05),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: _updateAvailable
-                      ? Colors.green.withOpacity(0.3)
-                      : Colors.white.withOpacity(0.1),
+                  color: _updateDownloaded
+                      ? Colors.blue.withOpacity(0.3)
+                      : _updateAvailable
+                          ? Colors.green.withOpacity(0.3)
+                          : Colors.white.withOpacity(0.1),
                 ),
               ),
               child: Column(
@@ -1392,16 +1400,32 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
                   Row(
                     children: [
                       Icon(
-                        _updateAvailable ? Icons.system_update : Icons.check_circle,
-                        color: _updateAvailable ? Colors.green : Colors.blue,
+                        _updateDownloaded
+                            ? Icons.download_done
+                            : _updateAvailable
+                                ? Icons.system_update
+                                : Icons.check_circle,
+                        color: _updateDownloaded
+                            ? Colors.blue
+                            : _updateAvailable
+                                ? Colors.green
+                                : Colors.blue,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          _updateAvailable ? 'Update Available' : 'Up to Date',
+                          _updateDownloaded
+                              ? 'Update Downloaded'
+                              : _updateAvailable
+                                  ? 'Update Available'
+                                  : 'Up to Date',
                           style: TextStyle(
-                            color: _updateAvailable ? Colors.green : Colors.white,
+                            color: _updateDownloaded
+                                ? Colors.blue
+                                : _updateAvailable
+                                    ? Colors.green
+                                    : Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1410,7 +1434,15 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (_latestRelease != null && _updateAvailable) ...[
+                  if (_updateDownloaded) ...[
+                    const Text(
+                      'Update downloaded successfully. Restart the application to apply.',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ] else if (_latestRelease != null && _updateAvailable) ...[
                     Text(
                       'Version ${_latestRelease!.version} is available',
                       style: const TextStyle(
@@ -1440,39 +1472,41 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
                   const SizedBox(height: 16),
 
                   // Action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _isCheckingForUpdates ? null : _checkForUpdates,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
-                          child: _isCheckingForUpdates
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Text('Check for Updates'),
-                        ),
-                      ),
-                      if (_updateAvailable) ...[
-                        const SizedBox(width: 12),
+                  if (_updateDownloaded) ...[
+                    Row(
+                      children: [
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _isDownloadingUpdate ? null : _downloadAndInstallUpdate,
+                            onPressed: () {
+                              // TODO: Implement restart functionality
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please restart the application manually to apply the update.'),
+                                ),
+                              );
+                            },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
+                              backgroundColor: Colors.blue,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 10),
                             ),
-                            child: _isDownloadingUpdate
+                            child: const Text('Restart Now'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _isCheckingForUpdates ? null : _checkForUpdates,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            child: _isCheckingForUpdates
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
@@ -1481,12 +1515,35 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
                                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                     ),
                                   )
-                                : const Text('Install Update'),
+                                : const Text('Check for Updates'),
                           ),
                         ),
+                        if (_updateAvailable) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isDownloadingUpdate ? null : _downloadAndInstallUpdate,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              child: _isDownloadingUpdate
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      ),
+                                    )
+                                  : const Text('Download & Install'),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
+                    ),
+                  ],
 
                   if (_isDownloadingUpdate && _downloadProgress > 0) ...[
                     const SizedBox(height: 12),
