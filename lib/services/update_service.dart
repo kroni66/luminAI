@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:archive/archive.dart';
 
 class ReleaseInfo {
   final String tagName;
@@ -216,6 +217,7 @@ class UpdateService {
 
     final appDir = Directory.current.path;
     final backupDir = path.join(appDir, 'backup');
+    final tempDir = path.join(appDir, 'temp_update');
 
     try {
       // Create backup directory if it doesn't exist
@@ -223,12 +225,89 @@ class UpdateService {
         await Directory(backupDir).create(recursive: true);
       }
 
-      // For now, just return true - actual installation would require
-      // more complex logic for replacing running executables
+      // Create temp directory for extraction
+      if (await Directory(tempDir).exists()) {
+        await Directory(tempDir).delete(recursive: true);
+      }
+      await Directory(tempDir).create(recursive: true);
+
+      // Extract the zip file
+      final archive = ZipDecoder().decodeBytes(await File(filePath).readAsBytes());
+      for (final file in archive) {
+        final filename = file.name;
+        if (file.isFile) {
+          final data = file.content as List<int>;
+          final extractedFile = File(path.join(tempDir, filename));
+          await extractedFile.create(recursive: true);
+          await extractedFile.writeAsBytes(data);
+        } else {
+          final dir = Directory(path.join(tempDir, filename));
+          await dir.create(recursive: true);
+        }
+      }
+
+      // Find the main executable in the extracted files
+      final exeFiles = await _findExeFiles(tempDir);
+      if (exeFiles.isEmpty) {
+        return false;
+      }
+
+      // Assume the first exe file is the main executable
+      final newExePath = exeFiles.first;
+      final exeName = path.basename(newExePath);
+      final currentExePath = path.join(appDir, exeName);
+
+      // Backup current executable
+      final backupExePath = path.join(backupDir, '$exeName.backup');
+      if (await File(currentExePath).exists()) {
+        await File(currentExePath).copy(backupExePath);
+      }
+
+      // Copy new executable (this might fail if the app is running)
+      try {
+        await File(newExePath).copy(currentExePath);
+      } catch (e) {
+        // If direct copy fails, create an update script for next startup
+        await _createUpdateScript(appDir, newExePath, currentExePath);
+        return true; // Return true since script will handle it
+      }
+
+      // Clean up temp directory
+      await Directory(tempDir).delete(recursive: true);
+
       return true;
     } catch (e) {
+      // Clean up on error
+      if (await Directory(tempDir).exists()) {
+        await Directory(tempDir).delete(recursive: true);
+      }
       return false;
     }
+  }
+
+  Future<List<String>> _findExeFiles(String directory) async {
+    final exeFiles = <String>[];
+    final dir = Directory(directory);
+
+    await for (final entity in dir.list(recursive: true)) {
+      if (entity is File && entity.path.toLowerCase().endsWith('.exe')) {
+        exeFiles.add(entity.path);
+      }
+    }
+
+    return exeFiles;
+  }
+
+  Future<void> _createUpdateScript(String appDir, String sourcePath, String targetPath) async {
+    final scriptPath = path.join(appDir, 'update.bat');
+    final script = '''
+@echo off
+timeout /t 2 /nobreak > nul
+copy "$sourcePath" "$targetPath" /Y
+del "%~f0"
+''';
+
+    await File(scriptPath).writeAsString(script);
   }
 
   Future<bool> _installMacosUpdate(String filePath) async {
