@@ -100,7 +100,7 @@ inno_bundle:
   vc_redist: true
   run_after_install: true
   install_dir: "{autopf}\\Lumin"
-  installer_file_name: "lumin-windows-{version}.msi"
+  installer_file_name: "lumin-windows-{version}.exe"
 
 
 

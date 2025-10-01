@@ -38,16 +38,16 @@ jobs:
         flutter doctor -v
         flutter build windows --release
 
-    - name: Create Windows MSI installer
+    - name: Create Windows installer
       run: |
         flutter pub run inno_bundle
-        move build\windows\runner\Release\lumin-windows-*.msi build\lumin-windows-${{ github.run_number }}.msi
+        move build\windows\x64\installer\Release\*.exe build\lumin-windows-${{ github.run_number }}.exe
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: lumin-windows-${{ github.run_number }}
-        path: build/lumin-windows-${{ github.run_number }}.msi
+        path: build/lumin-windows-${{ github.run_number }}.exe
 
   create-release:
     needs: [build-windows]
@@ -71,8 +71,8 @@ jobs:
           - Automated build from commit ${{ github.sha }}
 
           ## Downloads
-          - Windows: lumin-windows-${{ github.run_number }}.msi
+          - Windows: lumin-windows-${{ github.run_number }}.exe
         files: |
-          lumin-windows-${{ github.run_number }}/lumin-windows-${{ github.run_number }}.msi
+          lumin-windows-${{ github.run_number }}/lumin-windows-${{ github.run_number }}.exe
       env:
         GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}

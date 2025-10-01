@@ -210,20 +210,18 @@ class UpdateService {
   }
 
   Future<bool> _installWindowsUpdate(String filePath) async {
-    // For Windows, run the MSI installer which will handle the update automatically
-    // The MSI installer is configured to restart the app after installation
+    // For Windows, run the Inno Setup installer which will handle the update automatically
+    // The installer is configured to restart the app after installation
     try {
-      // Run the MSI installer with silent installation flags
-      final result = await Process.run('msiexec.exe', [
-        '/i',
-        filePath,
-        '/quiet',
-        '/norestart',
-        '/l*v',
-        'install.log'
+      // Run the installer with silent installation flags
+      final result = await Process.run(filePath, [
+        '/VERYSILENT',  // Silent installation
+        '/SUPPRESSMSGBOXES',  // Suppress message boxes
+        '/NORESTART',   // Don't restart automatically (installer handles this)
+        '/LOG=install.log'  // Create log file
       ]);
 
-      // MSI installer will handle the app restart automatically due to run_after_install: true
+      // Installer will handle the app restart automatically due to run_after_install: true
       return result.exitCode == 0;
     } catch (e) {
       return false;
