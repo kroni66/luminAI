@@ -41,13 +41,13 @@ jobs:
     - name: Create Windows release archive
       run: |
         cd build\windows\x64\runner\Release
-        Compress-Archive -Path * -DestinationPath ..\..\..\..\lumin-windows-${{ github.run_number }}.zip
+        Compress-Archive -Path * -DestinationPath build\windows\x64\runner\Release\lumin-windows-${{ github.run_number }}.zip
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
         name: lumin-windows-${{ github.run_number }}
-        path: lumin-windows-${{ github.run_number }}.zip
+        path: build/lumin-windows-${{ github.run_number }}.zip
 
   build-macos:
     runs-on: macos-latest
@@ -117,7 +117,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: lumin-linux-${{ github.run_number }}
-        path: lumin-linux-${{ github.run_number }}.tar.gz
+        path: build/linux/lumin-linux-${{ github.run_number }}.tar.gz
 
   create-release:
     needs: [build-windows, build-macos, build-linux]
