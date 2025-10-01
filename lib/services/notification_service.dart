@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -8,6 +9,12 @@ class NotificationService {
 
   static Future<void> initialize() async {
     if (_initialized) return;
+
+    // Skip initialization on Windows for now to avoid build issues
+    if (Platform.isWindows) {
+      _initialized = true;
+      return;
+    }
 
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -37,6 +44,8 @@ class NotificationService {
   }
 
   static Future<void> showUpdateAvailableNotification(String version) async {
+    // Skip notifications on Windows for now
+    if (Platform.isWindows) return;
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'updates',
@@ -70,6 +79,8 @@ class NotificationService {
   }
 
   static Future<void> showUpdateDownloadedNotification() async {
+    // Skip notifications on Windows for now
+    if (Platform.isWindows) return;
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'updates',

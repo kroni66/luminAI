@@ -31,8 +31,12 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Build Windows
-      run: flutter build windows --release
+    - name: Clean and Build Windows
+      run: |
+        flutter clean
+        flutter pub cache repair
+        flutter doctor -v
+        flutter build windows --release
 
     - name: Create Windows release archive
       run: |
