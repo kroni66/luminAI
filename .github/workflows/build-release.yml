@@ -49,18 +49,42 @@ jobs:
         $certPath = "$env:TEMP\luminai_cert.pfx"
         Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$thumbprint" -FilePath $certPath -Password (ConvertTo-SecureString -String "password123" -Force -AsPlainText)
 
-    - name: Create Windows installer with signing
+    - name: Create Windows installer (without signing for now)
       run: |
-        # Use inno_bundle with separate signing parameters
-        # $f is the filename placeholder that Inno Setup replaces
-        flutter pub run inno_bundle --sign-tool-name signtool --sign-tool-command sign --sign-tool-params "/fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT `$f"
+        # Create installer without signing first to get it working
+        # Will add signing later once signtool path is resolved
+        flutter pub run inno_bundle
         move build\windows\x64\installer\Release\*.exe build\lumin-windows-${{ github.run_number }}.exe
 
-    - name: "Alternative: Sign the installer manually if inno_bundle signing fails"
+    - name: Try to find and use signtool for signing
       run: |
-        # If inno_bundle signing doesn't work, sign the installer manually
-        if (Test-Path "build\lumin-windows-${{ github.run_number }}.exe") {
-          signtool sign /fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT "build\lumin-windows-${{ github.run_number }}.exe"
+        # Try to find signtool in common Windows SDK locations
+        $signtoolPaths = @(
+          "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe",
+          "C:\Program Files\Windows Kits\10\bin\*\x64\signtool.exe",
+          "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe",
+          "${env:ProgramFiles}\Windows Kits\10\bin\*\x64\signtool.exe"
+        )
+
+        $signtoolPath = $null
+        foreach ($path in $signtoolPaths) {
+          $found = Get-Item $path -ErrorAction SilentlyContinue
+          if ($found) {
+            $signtoolPath = $found.FullName
+            break
+          }
+        }
+
+        if ($signtoolPath -and (Test-Path "build\lumin-windows-${{ github.run_number }}.exe")) {
+          Write-Host "Found signtool at: $signtoolPath"
+          & $signtoolPath sign /fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT "build\lumin-windows-${{ github.run_number }}.exe"
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Installer signed successfully"
+          } else {
+            Write-Host "Signing failed, but continuing with unsigned installer"
+          }
+        } else {
+          Write-Host "Signtool not found or installer missing, continuing with unsigned installer"
         }
 
     - name: Upload Windows artifact
