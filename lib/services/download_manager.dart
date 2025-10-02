@@ -32,6 +32,7 @@ class DownloadManager {
   // Callbacks
   VoidCallback? onDownloadListChanged;
   VoidCallback? onDownloadProgressChanged;
+  void Function(String filename, bool success)? onDownloadCompleted;
 
   DownloadManager(this._databaseHelper, this._settingsManager);
 
@@ -451,6 +452,11 @@ class DownloadManager {
     // Start next download
     await _startNextDownload();
 
+    // Notify about completion
+    if (download != null) {
+      onDownloadCompleted?.call(download.filename, true);
+    }
+
     if (onDownloadListChanged != null) {
       debugPrint('Calling onDownloadListChanged after completion');
       onDownloadListChanged!.call();
@@ -485,6 +491,10 @@ class DownloadManager {
 
     // Start next download
     await _startNextDownload();
+
+    // Notify about failure
+    onDownloadCompleted?.call(download?.filename ?? 'Unknown file', false);
+
     onDownloadListChanged?.call();
   }
 

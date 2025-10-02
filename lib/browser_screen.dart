@@ -492,6 +492,24 @@ class _BrowserScreenState extends State<BrowserScreen> {
     await _bookmarkManager.initialize();
     await _historyManager.initialize();
     await _downloadManager.initialize();
+
+    // Set up download manager callbacks
+    _downloadManager.onDownloadCompleted = (filename, success) {
+      if (success) {
+        _showNotification(
+          'Download Completed',
+          '$filename has been downloaded successfully',
+          isError: false,
+        );
+      } else {
+        _showNotification(
+          'Download Failed',
+          '$filename failed to download',
+          isError: true,
+        );
+      }
+    };
+
     await _loadCustomFavorites();
     await _loadWidgetsFromDatabase();
     await _loadSmartNotes();
@@ -1067,6 +1085,52 @@ class _BrowserScreenState extends State<BrowserScreen> {
     });
   }
 
+  void _showNotification(String title, String message, {bool isError = false}) {
+    if (!mounted) return;
+
+    final theme = ShadTheme.of(context);
+    final backgroundColor = isError
+        ? theme.colorScheme.destructive
+        : theme.colorScheme.primary;
+    final foregroundColor = isError
+        ? theme.colorScheme.destructiveForeground
+        : theme.colorScheme.primaryForeground;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                color: foregroundColor,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              message,
+              style: TextStyle(
+                color: foregroundColor.withOpacity(0.9),
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+  }
+
   Future<void> _downloadFile(String url) async {
     try {
       debugPrint('BrowserScreen: Starting download process for: $url');
@@ -1076,24 +1140,30 @@ class _BrowserScreenState extends State<BrowserScreen> {
       // Show success message
       debugPrint('BrowserScreen: Download started successfully: $url');
 
-      // Auto-show downloads window if not already open
+      // Show success notification
+      _showNotification(
+        'Download Started',
+        'Download has been added to the queue',
+        isError: false,
+      );
+
+      // Auto-show downloads window immediately if not already open
       if (!_isDownloadWindowOpen) {
-        debugPrint('BrowserScreen: Download window not open, scheduling to open it');
-        // Small delay to ensure download is set up in manager
-        Future.delayed(const Duration(milliseconds: 200), () {
-          if (mounted && !_isDownloadWindowOpen) {
-            debugPrint('BrowserScreen: Opening download window');
-            _showDownloads();
-          }
-        });
+        debugPrint('BrowserScreen: Download window not open, opening immediately');
+        if (mounted) {
+          _showDownloads();
+        }
       } else {
         debugPrint('BrowserScreen: Download window already open');
       }
-
-      // TODO: Implement proper notification system for ShadApp
     } catch (e) {
       debugPrint('BrowserScreen: Failed to start download: $e');
-      // TODO: Implement proper error notification system for ShadApp
+      // Show error notification
+      _showNotification(
+        'Download Failed',
+        'Failed to start download: ${e.toString()}',
+        isError: true,
+      );
     }
   }
 
