@@ -56,36 +56,6 @@ jobs:
         flutter pub run inno_bundle
         move build\windows\x64\installer\Release\*.exe build\lumin-windows-${{ github.run_number }}.exe
 
-    - name: Try to find and use signtool for signing
-      run: |
-        # Try to find signtool in common Windows SDK locations
-        $signtoolPaths = @(
-          "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe",
-          "C:\Program Files\Windows Kits\10\bin\*\x64\signtool.exe",
-          "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe",
-          "${env:ProgramFiles}\Windows Kits\10\bin\*\x64\signtool.exe"
-        )
-
-        $signtoolPath = $null
-        foreach ($path in $signtoolPaths) {
-          $found = Get-Item $path -ErrorAction SilentlyContinue
-          if ($found) {
-            $signtoolPath = $found.FullName
-            break
-          }
-        }
-
-        if ($signtoolPath -and (Test-Path "build\lumin-windows-${{ github.run_number }}.exe")) {
-          Write-Host "Found signtool at: $signtoolPath"
-          & $signtoolPath sign /fd SHA256 /t http://timestamp.digicert.com /sha1 $env:CERT_THUMBPRINT "build\lumin-windows-${{ github.run_number }}.exe"
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Installer signed successfully"
-          } else {
-            Write-Host "Signing failed, but continuing with unsigned installer"
-          }
-        } else {
-          Write-Host "Signtool not found or installer missing, continuing with unsigned installer"
-        }
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
