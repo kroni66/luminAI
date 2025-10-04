@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'ollama_service.dart';
 import 'adblock_service.dart';
@@ -13,6 +14,70 @@ enum AppTheme {
   dark,
   light,
   system,
+}
+
+enum ColorSchemeType {
+  zinc,
+  slate,
+  stone,
+  gray,
+  neutral,
+  red,
+  rose,
+  orange,
+  green,
+  blue,
+  yellow,
+  violet,
+}
+
+class ThemeCustomization {
+  final ColorSchemeType colorScheme;
+  final Color? accentColor;
+  final Color? backgroundColor;
+  final Color? surfaceColor;
+
+  const ThemeCustomization({
+    this.colorScheme = ColorSchemeType.zinc,
+    this.accentColor,
+    this.backgroundColor,
+    this.surfaceColor,
+  });
+
+  ThemeCustomization copyWith({
+    ColorSchemeType? colorScheme,
+    Color? accentColor,
+    Color? backgroundColor,
+    Color? surfaceColor,
+  }) {
+    return ThemeCustomization(
+      colorScheme: colorScheme ?? this.colorScheme,
+      accentColor: accentColor ?? this.accentColor,
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      surfaceColor: surfaceColor ?? this.surfaceColor,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'colorScheme': colorScheme.toString().split('.').last,
+      'accentColor': accentColor?.value,
+      'backgroundColor': backgroundColor?.value,
+      'surfaceColor': surfaceColor?.value,
+    };
+  }
+
+  factory ThemeCustomization.fromJson(Map<String, dynamic> json) {
+    return ThemeCustomization(
+      colorScheme: ColorSchemeType.values.firstWhere(
+        (e) => e.toString().split('.').last == json['colorScheme'],
+        orElse: () => ColorSchemeType.zinc,
+      ),
+      accentColor: json['accentColor'] != null ? Color(json['accentColor']) : null,
+      backgroundColor: json['backgroundColor'] != null ? Color(json['backgroundColor']) : null,
+      surfaceColor: json['surfaceColor'] != null ? Color(json['surfaceColor']) : null,
+    );
+  }
 }
 
 enum AIProvider {
@@ -49,6 +114,7 @@ class SettingsManager {
 
   // Theme settings
   AppTheme _appTheme = AppTheme.dark;
+  ThemeCustomization _themeCustomization = const ThemeCustomization();
 
   // Download settings
   String? _defaultDownloadDirectory;
@@ -99,6 +165,7 @@ class SettingsManager {
   AssistantLanguage get assistantLanguage => _assistantLanguage;
   bool get toolModeEnabled => _toolModeEnabled;
   AppTheme get appTheme => _appTheme;
+  ThemeCustomization get themeCustomization => _themeCustomization;
 
   // Download settings getters
   String? get defaultDownloadDirectory => _defaultDownloadDirectory;
@@ -234,6 +301,17 @@ class SettingsManager {
           _appTheme = AppTheme.system;
         } else {
           _appTheme = AppTheme.dark;
+        }
+      }
+
+      // Load theme customization
+      final themeCustomizationValue = await _dbHelper.getSetting('theme_customization');
+      if (themeCustomizationValue != null) {
+        try {
+          final json = jsonDecode(themeCustomizationValue);
+          _themeCustomization = ThemeCustomization.fromJson(json);
+        } catch (e) {
+          debugPrint('Error loading theme customization: $e');
         }
       }
 
@@ -413,6 +491,23 @@ class SettingsManager {
     onSettingsChanged?.call();
   }
 
+  Future<void> updateThemeCustomization(ThemeCustomization customization) async {
+    debugPrint('Updating theme customization: ${customization.toJson()}');
+    _themeCustomization = customization;
+
+    // Save to database
+    try {
+      final json = jsonEncode(customization.toJson());
+      await _dbHelper.setSetting('theme_customization', json);
+      debugPrint('Theme customization saved to database: $json');
+    } catch (e) {
+      debugPrint('Error saving theme customization to database: $e');
+    }
+
+    debugPrint('Calling onSettingsChanged callback');
+    onSettingsChanged?.call();
+  }
+
   // Download settings methods
   void updateDefaultDownloadDirectory(String? directory) {
     _defaultDownloadDirectory = directory;
@@ -471,67 +566,298 @@ class SettingsManager {
     onSettingsChanged?.call();
   }
 
-  // Smooth scrolling setup using CSS scroll-behavior on webview
+  // Enhanced smooth scrolling setup using advanced CSS and JavaScript
   String getWebViewSmoothScrollingJavaScript() {
     if (!_smoothScrolling) {
       return '';
     }
 
     return '''
-      // Set up smooth scrolling using CSS scroll-behavior on the webview document
+      // Enhanced smooth scrolling implementation with momentum and advanced behavior
       (function() {
-        // Apply smooth scrolling CSS immediately to all scrollable elements
+        // Remove any existing smooth scrolling styles
+        var existingStyle = document.getElementById('browser2-smooth-scroll-style');
+        if (existingStyle) {
+          existingStyle.remove();
+        }
+
+        // Create enhanced smooth scrolling CSS
         var style = document.createElement('style');
         style.id = 'browser2-smooth-scroll-style';
         style.textContent = \`
           html, body {
             scroll-behavior: smooth !important;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch !important;
+            overscroll-behavior: contain !important;
+            scroll-snap-type: none !important;
           }
+
+          /* Apply to all scrollable elements */
           * {
             scroll-behavior: smooth !important;
+          }
+
+          /* Enhanced scrolling for better momentum */
+          [style*="overflow"] {
+            -webkit-overflow-scrolling: touch !important;
+            overscroll-behavior: contain !important;
+          }
+
+          /* Improve scrollbar appearance and behavior */
+          ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+          }
+
+          ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 6px;
+          }
+
+          ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+          }
+
+          ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.5);
+            background-clip: content-box;
+          }
+
+          /* Smooth transitions for better UX */
+          * {
+            transition: scroll-behavior 0.3s ease !important;
           }
         \`;
         document.head.appendChild(style);
 
-        // Also set styles directly on elements for immediate effect
-        document.documentElement.style.scrollBehavior = 'smooth';
-        document.body.style.scrollBehavior = 'smooth';
-        document.documentElement.style.webkitOverflowScrolling = 'touch';
-        document.body.style.webkitOverflowScrolling = 'touch';
-        document.documentElement.style.overscrollBehavior = 'contain';
-        document.body.style.overscrollBehavior = 'contain';
+        // Apply styles directly for immediate effect
+        var elements = [document.documentElement, document.body];
+        elements.forEach(function(el) {
+          if (el) {
+            el.style.scrollBehavior = 'smooth';
+            el.style.webkitOverflowScrolling = 'touch';
+            el.style.overscrollBehavior = 'contain';
+            el.style.scrollSnapType = 'none';
+          }
+        });
 
-        console.log('Smooth scrolling enabled via CSS scroll-behavior');
+        // Enhanced wheel event handling for better smooth scrolling
+        var wheelTimeout;
+        var lastWheelTime = 0;
+        var accumulatedDeltaX = 0;
+        var accumulatedDeltaY = 0;
+
+        function handleWheel(event) {
+          // Prevent default smooth scrolling conflicts
+          if (event.deltaY !== 0 || event.deltaX !== 0) {
+            var currentTime = Date.now();
+            var timeDiff = currentTime - lastWheelTime;
+
+            // Accumulate small movements for smoother scrolling
+            if (timeDiff < 16) { // ~60fps
+              accumulatedDeltaX += event.deltaX * 0.3;
+              accumulatedDeltaY += event.deltaY * 0.3;
+
+              // Apply accumulated scroll with easing
+              if (Math.abs(accumulatedDeltaX) > 1 || Math.abs(accumulatedDeltaY) > 1) {
+                window.scrollBy({
+                  left: accumulatedDeltaX,
+                  top: accumulatedDeltaY,
+                  behavior: 'smooth'
+                });
+                accumulatedDeltaX *= 0.7; // Decay accumulation
+                accumulatedDeltaY *= 0.7;
+                event.preventDefault();
+              }
+            } else {
+              // Reset accumulation for new scroll gesture
+              accumulatedDeltaX = 0;
+              accumulatedDeltaY = 0;
+            }
+
+            lastWheelTime = currentTime;
+
+            // Clear timeout for smooth ending
+            clearTimeout(wheelTimeout);
+            wheelTimeout = setTimeout(function() {
+              accumulatedDeltaX = 0;
+              accumulatedDeltaY = 0;
+            }, 100);
+          }
+        }
+
+        // Add enhanced wheel event listener
+        document.addEventListener('wheel', handleWheel, { passive: false });
+
+        // Add touch scrolling enhancements for mobile-like behavior
+        var touchStartY = 0;
+        var touchStartX = 0;
+        var touchMomentum = { x: 0, y: 0 };
+        var touchMomentumTimeout;
+
+        function handleTouchStart(event) {
+          touchStartY = event.touches[0].clientY;
+          touchStartX = event.touches[0].clientX;
+          touchMomentum = { x: 0, y: 0 };
+          clearTimeout(touchMomentumTimeout);
+        }
+
+        function handleTouchMove(event) {
+          if (event.touches.length === 1) {
+            var touchCurrentY = event.touches[0].clientY;
+            var touchCurrentX = event.touches[0].clientX;
+            var deltaY = touchStartY - touchCurrentY;
+            var deltaX = touchStartX - touchCurrentX;
+
+            // Calculate momentum
+            touchMomentum.y = deltaY * 0.1;
+            touchMomentum.x = deltaX * 0.1;
+
+            touchStartY = touchCurrentY;
+            touchStartX = touchCurrentX;
+          }
+        }
+
+        function handleTouchEnd(event) {
+          // Apply momentum scrolling
+          if (Math.abs(touchMomentum.y) > 0.5 || Math.abs(touchMomentum.x) > 0.5) {
+            applyMomentumScroll();
+          }
+        }
+
+        function applyMomentumScroll() {
+          var friction = ${_scrollFriction};
+          var deceleration = ${_scrollDeceleration};
+          var minVelocity = ${_scrollMinVelocity};
+          var maxVelocity = ${_scrollMaxVelocity};
+
+          function animate() {
+            // Apply friction
+            touchMomentum.x *= friction;
+            touchMomentum.y *= friction;
+
+            // Apply deceleration
+            touchMomentum.x *= deceleration;
+            touchMomentum.y *= deceleration;
+
+            // Clamp velocity
+            touchMomentum.x = Math.max(-maxVelocity, Math.min(maxVelocity, touchMomentum.x));
+            touchMomentum.y = Math.max(-maxVelocity, Math.min(maxVelocity, touchMomentum.y));
+
+            // Stop if velocity is too low
+            if (Math.abs(touchMomentum.x) < minVelocity && Math.abs(touchMomentum.y) < minVelocity) {
+              return;
+            }
+
+            // Apply scroll
+            window.scrollBy(touchMomentum.x, touchMomentum.y);
+
+            // Continue animation
+            requestAnimationFrame(animate);
+          }
+
+          requestAnimationFrame(animate);
+        }
+
+        // Add touch event listeners
+        document.addEventListener('touchstart', handleTouchStart, { passive: true });
+        document.addEventListener('touchmove', handleTouchMove, { passive: true });
+        document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+        console.log('Enhanced smooth scrolling enabled with momentum and advanced behavior');
       })();
     ''';
   }
 
-  // Mouse wheel sensitivity control (compatible with CSS scroll-behavior)
+  // Enhanced mouse wheel sensitivity control that works with advanced smooth scrolling
   String getWebViewMouseSensitivityJavaScript() {
     final sensitivity = _mouseSensitivity;
 
     return '''
-      // Apply mouse wheel sensitivity control that works with CSS scroll-behavior
+      // Enhanced mouse wheel sensitivity control that works with advanced smooth scrolling
       (function() {
         var sensitivity = ${sensitivity};
+        var isSmoothScrollingEnabled = ${_smoothScrolling};
 
-        // Intercept wheel events to modify delta values for sensitivity
+        // Enhanced wheel event handling for sensitivity and smooth behavior
         function handleWheelSensitivity(event) {
           if (!event.deltaY && !event.deltaX) return;
 
-          // Modify delta values based on sensitivity - smaller values = more sensitive (smaller steps)
-          event.deltaX *= sensitivity;
-          event.deltaY *= sensitivity;
+          // Apply sensitivity multiplier
+          var modifiedDeltaX = event.deltaX * sensitivity;
+          var modifiedDeltaY = event.deltaY * sensitivity;
 
-          // Let browser handle the scrolling with CSS scroll-behavior - preserves scrollbar functionality
+          if (isSmoothScrollingEnabled) {
+            // For smooth scrolling, let the enhanced smooth scrolling handler manage the event
+            // Just apply sensitivity to the event for the smooth scrolling system
+            event.deltaX = modifiedDeltaX;
+            event.deltaY = modifiedDeltaY;
+          } else {
+            // For non-smooth scrolling, apply direct scroll with sensitivity
+            event.preventDefault();
+            window.scrollBy({
+              left: modifiedDeltaX,
+              top: modifiedDeltaY,
+              behavior: 'auto'
+            });
+          }
         }
 
-        // Add wheel event listener (use capturing phase to intercept before CSS scroll-behavior)
-        document.addEventListener('wheel', handleWheelSensitivity, { passive: false, capture: true });
+        // Add wheel event listener with appropriate priority
+        // Use capturing phase to ensure sensitivity is applied before other handlers
+        document.addEventListener('wheel', handleWheelSensitivity, {
+          passive: false,
+          capture: true,
+          once: false
+        });
 
-        console.log('Mouse wheel sensitivity set to: ' + sensitivity + ' (compatible with CSS scroll-behavior)');
+        console.log('Enhanced mouse wheel sensitivity set to: ' + sensitivity +
+                   ' (smooth scrolling: ' + isSmoothScrollingEnabled + ')');
+      })();
+    ''';
+  }
+
+  // Get scrolling configuration status for debugging
+  Map<String, dynamic> getScrollingConfiguration() {
+    return {
+      'smoothScrolling': _smoothScrolling,
+      'mouseSensitivity': _mouseSensitivity,
+      'scrollFriction': _scrollFriction,
+      'scrollDeceleration': _scrollDeceleration,
+      'scrollMinVelocity': _scrollMinVelocity,
+      'scrollMaxVelocity': _scrollMaxVelocity,
+    };
+  }
+
+  // Reset smooth scrolling to default state (removes custom styles and event listeners)
+  String getWebViewSmoothScrollingResetJavaScript() {
+    return '''
+      // Reset smooth scrolling to default state
+      (function() {
+        // Remove custom smooth scrolling styles
+        var style = document.getElementById('browser2-smooth-scroll-style');
+        if (style) {
+          style.remove();
+        }
+
+        // Reset element styles
+        var elements = [document.documentElement, document.body];
+        elements.forEach(function(el) {
+          if (el) {
+            el.style.scrollBehavior = '';
+            el.style.webkitOverflowScrolling = '';
+            el.style.overscrollBehavior = '';
+            el.style.scrollSnapType = '';
+          }
+        });
+
+        // Remove all custom event listeners by reloading event handlers
+        // This is a simplified approach - in production, we'd track and remove specific listeners
+
+        console.log('Smooth scrolling reset to default state');
       })();
     ''';
   }

@@ -696,6 +696,11 @@ class _BrowserScreenState extends State<BrowserScreen> {
     // Theme change is handled by the main app via settingsManager.onSettingsChanged callback
   }
 
+  void _updateThemeCustomization(ThemeCustomization customization) async {
+    await _settingsManager.updateThemeCustomization(customization);
+    // Theme customization change is handled by the main app via settingsManager.onSettingsChanged callback
+  }
+
   void _showSettings() {
     showDialog(
       context: context,
@@ -708,6 +713,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         scrollMinVelocity: _settingsManager.scrollMinVelocity,
         scrollMaxVelocity: _settingsManager.scrollMaxVelocity,
         appTheme: _settingsManager.appTheme,
+        themeCustomization: _settingsManager.themeCustomization,
         aiProvider: _settingsManager.aiProvider,
         ollamaBaseUrl: _settingsManager.ollamaBaseUrl,
         ollamaModel: _settingsManager.ollamaModel,
@@ -727,6 +733,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
         onSettingsChanged: _updateScrollSettings,
         onScrollPhysicsChanged: _updateScrollPhysics,
         onThemeSettingsChanged: _updateThemeSettings,
+        onThemeCustomizationChanged: _updateThemeCustomization,
         onAISettingsChanged: _updateAISettings,
         onAIProviderSettingsChanged: _updateAIProviderSettings,
         onAdBlockSettingsChanged: _updateAdBlockSettings,
@@ -1347,60 +1354,49 @@ class _BrowserScreenState extends State<BrowserScreen> {
           children: [
             Column(
           children: [
-            SizedBox(
-              height: 72,
-              child: Stack(
-                children: [
-                  // Full draggable background covering entire area including above buttons
-                  WindowTitleBarBox(
-                    child: Container(
-                      color: Colors.transparent,
-                    ),
-                  ),
-                  // Content layer on top of draggable area
-                  Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                        child: BrowserAppBar(
-                          key: _browserAppBarKey,
-                          canGoBack: _navigationManager.canGoBack,
-                          canGoForward: _navigationManager.canGoForward,
-                          urlController: _urlController,
-                          onGoHome: () => _navigationManager.goHome(),
-                          onGoBack: () => _navigationManager.goBack(),
-                          onGoForward: () => _navigationManager.goForward(),
-                          onRefresh: () => _navigationManager.refresh(),
-                          onNavigateToUrl: _navigateToUrl,
-                          onAddBookmark: () {
-                            final url = _navigationManager.currentUrl;
-                            debugPrint('Adding bookmark for URL: $url');
-                            _bookmarkManager.addBookmark(url);
-                          },
-                          onShowBookmarks: _showBookmarks,
-                          onShowHistory: _showHistory,
-                          onShowDownloads: _showDownloads,
-                          onAddNewTab: _addNewTab,
-                          onToggleChat: _toggleChat,
-                          onShowSettings: _showSettings,
-                          currentFaviconUrl: _tabManager.activeTab?.faviconUrl,
-                          historyManager: _historyManager,
-                          onShowSuggestions: _showSuggestions,
-                          onHideSuggestions: _hideSuggestions,
-                          onToggleHighlights: () => _contextualHighlightsManager.toggleHighlights(),
-                          onArrowUp: _navigateSuggestionsUp,
-                          onArrowDown: _navigateSuggestionsDown,
-                          onEnterKey: _selectCurrentSuggestion,
-                          updateAvailable: _updateAvailable,
+                SizedBox(
+                  height: 72,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                          child: BrowserAppBar(
+                            key: _browserAppBarKey,
+                            canGoBack: _navigationManager.canGoBack,
+                            canGoForward: _navigationManager.canGoForward,
+                            urlController: _urlController,
+                            onGoHome: () => _navigationManager.goHome(),
+                            onGoBack: () => _navigationManager.goBack(),
+                            onGoForward: () => _navigationManager.goForward(),
+                            onRefresh: () => _navigationManager.refresh(),
+                            onNavigateToUrl: _navigateToUrl,
+                            onAddBookmark: () {
+                              final url = _navigationManager.currentUrl;
+                              debugPrint('Adding bookmark for URL: $url');
+                              _bookmarkManager.addBookmark(url);
+                            },
+                            onShowBookmarks: _showBookmarks,
+                            onShowHistory: _showHistory,
+                            onShowDownloads: _showDownloads,
+                            onAddNewTab: _addNewTab,
+                            onToggleChat: _toggleChat,
+                            onShowSettings: _showSettings,
+                            currentFaviconUrl: _tabManager.activeTab?.faviconUrl,
+                            historyManager: _historyManager,
+                            onShowSuggestions: _showSuggestions,
+                            onHideSuggestions: _hideSuggestions,
+                            onToggleHighlights: () => _contextualHighlightsManager.toggleHighlights(),
+                            onArrowUp: _navigateSuggestionsUp,
+                            onArrowDown: _navigateSuggestionsDown,
+                            onEnterKey: _selectCurrentSuggestion,
+                            updateAvailable: _updateAvailable,
+                          ),
                         ),
                       ),
-                    ),
-                    const WindowButtons(),
-                  ],
+                      const WindowButtons(),
+                    ],
                   ),
-                ],
-              ),
                 ),
                 // Compact Tab Bar
                 CompactTabBar(

@@ -1,0 +1,20 @@
+[package]
+name = "browser2"
+version = "1.0.4"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+flutter_rust_bridge = "2.11.1"
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1.0", features = ["full"] }
+wry = "0.24"
+tao = "0.16"
+url = "2.3"
+http = "0.2"
+lazy_static = "1.4"
+pollster = "0.3"
+

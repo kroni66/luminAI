@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -66,22 +67,24 @@ class BrowserAppBar extends StatefulWidget implements PreferredSizeWidget {
   State<BrowserAppBar> createState() => BrowserAppBarState();
 }
 
-
 class BrowserAppBarState extends State<BrowserAppBar> {
   String _currentQuery = '';
   bool _isProgrammaticChange = false;
   bool _enterKeyHandled = false;
+  Timer? _debounceTimer;
+  final Map<String, List<HistoryEntry>> _searchCache = {};
 
   @override
   void initState() {
     super.initState();
-    // Listen to text changes to show suggestions
     widget.urlController.addListener(_onTextChanged);
+    widget.historyManager.onHistoryChanged = _clearSearchCache;
   }
 
   @override
   void dispose() {
     widget.urlController.removeListener(_onTextChanged);
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -89,11 +92,21 @@ class BrowserAppBarState extends State<BrowserAppBar> {
     final text = widget.urlController.text;
     if (text != _currentQuery) {
       _currentQuery = text;
-      // Only update suggestions if this is not a programmatic change
       if (!_isProgrammaticChange) {
-        _updateSuggestions();
+        // Cancel existing timer
+        _debounceTimer?.cancel();
+        // Start new timer with 300ms delay
+        _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _updateSuggestions();
+          }
+        });
       }
     }
+  }
+
+  void _clearSearchCache() {
+    _searchCache.clear();
   }
 
   void _updateSuggestions() {
@@ -102,7 +115,21 @@ class BrowserAppBarState extends State<BrowserAppBar> {
       return;
     }
 
+    // Check cache first
+    if (_searchCache.containsKey(_currentQuery)) {
+      final suggestions = _searchCache[_currentQuery]!;
+      if (suggestions.isNotEmpty) {
+        widget.onShowSuggestions(suggestions, _currentQuery);
+      } else {
+        widget.onHideSuggestions();
+      }
+      return;
+    }
+
+    // Perform search and cache result
     final suggestions = widget.historyManager.searchHistory(_currentQuery);
+    _searchCache[_currentQuery] = suggestions;
+
     if (suggestions.isNotEmpty) {
       widget.onShowSuggestions(suggestions, _currentQuery);
     } else {
@@ -116,6 +143,7 @@ class BrowserAppBarState extends State<BrowserAppBar> {
     _isProgrammaticChange = false;
   }
 
+ 
   @override
   Widget build(BuildContext context) {
     Widget outlinedIconButton({required VoidCallback? onPressed, required Widget child}) {
@@ -136,48 +164,45 @@ class BrowserAppBarState extends State<BrowserAppBar> {
       );
     }
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Row(
-          children: [
-            outlinedIconButton(onPressed: widget.onGoHome, child: Icon(HeroiconsOutline.home, size: 14)),
-            MoveWindow(child: const SizedBox(width: 6)),
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                outlinedIconButton(onPressed: widget.onShowSettings, child: Icon(HeroiconsOutline.cog6Tooth, size: 14)),
-                if (widget.updateAvailable)
-                  Positioned(
-                    right: -2,
-                    top: -2,
-                    child: Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1),
-                      ),
+    return MoveWindow(
+      child: Row(
+        children: [
+          outlinedIconButton(onPressed: widget.onGoHome, child: Icon(HeroiconsOutline.home, size: 14)),
+          const SizedBox(width: 6),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              outlinedIconButton(onPressed: widget.onShowSettings, child: Icon(HeroiconsOutline.cog6Tooth, size: 14)),
+              if (widget.updateAvailable)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1),
                     ),
                   ),
-              ],
-            ),
-            MoveWindow(child: const SizedBox(width: 6)),
-            outlinedIconButton(onPressed: widget.canGoBack ? widget.onGoBack : null, child: Icon(HeroiconsOutline.arrowLeft, size: 14, color: widget.canGoBack ? null : Colors.grey.withOpacity(0.5))),
-            MoveWindow(child: const SizedBox(width: 6)),
-            outlinedIconButton(onPressed: widget.canGoForward ? widget.onGoForward : null, child: Icon(HeroiconsOutline.arrowRight, size: 14, color: widget.canGoForward ? null : Colors.grey.withOpacity(0.5))),
-            MoveWindow(child: const SizedBox(width: 6)),
-            outlinedIconButton(onPressed: widget.onRefresh, child: Icon(HeroiconsOutline.arrowPath, size: 14)),
-            MoveWindow(child: const SizedBox(width: 8)),
-            Expanded(
-              child: MoveWindow(
-                child: SizedBox(
-                  height: 48,
-                  child: Focus(
+                ),
+            ],
+          ),
+          const SizedBox(width: 6),
+          outlinedIconButton(onPressed: widget.canGoBack ? widget.onGoBack : null, child: Icon(HeroiconsOutline.arrowLeft, size: 14, color: widget.canGoBack ? null : Colors.grey.withOpacity(0.5))),
+          const SizedBox(width: 6),
+          outlinedIconButton(onPressed: widget.canGoForward ? widget.onGoForward : null, child: Icon(HeroiconsOutline.arrowRight, size: 14, color: widget.canGoForward ? null : Colors.grey.withOpacity(0.5))),
+          const SizedBox(width: 6),
+          outlinedIconButton(onPressed: widget.onRefresh, child: Icon(HeroiconsOutline.arrowPath, size: 14)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: SizedBox(
+              height: 48,
+                child: Focus(
                   onFocusChange: (hasFocus) {
                     if (!hasFocus) {
-                      // Delay dismissal to allow suggestion clicks
+                      // Only hide suggestions when losing focus, with delay
                       Future.delayed(const Duration(milliseconds: 150), () {
                         if (!mounted) return;
                         widget.onHideSuggestions();
@@ -185,91 +210,67 @@ class BrowserAppBarState extends State<BrowserAppBar> {
                     }
                   },
                   child: GestureDetector(
-                      onDoubleTap: () {
-                        // Select all text when double-clicking instead of minimizing window
-                        widget.urlController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: widget.urlController.text.length,
-                        );
-                      },
-                      child: KeyboardListener(
-                        focusNode: FocusNode(),
-                        onKeyEvent: (KeyEvent event) {
-                          if (event is KeyDownEvent) {
-                            final logicalKey = event.logicalKey;
-                            if (logicalKey == LogicalKeyboardKey.arrowUp) {
-                              widget.onArrowUp?.call();
-                            } else if (logicalKey == LogicalKeyboardKey.arrowDown) {
-                              widget.onArrowDown?.call();
-                            } else if (logicalKey == LogicalKeyboardKey.enter) {
-                              _enterKeyHandled = true;
-                              widget.onEnterKey?.call();
-                              // Reset the flag after this frame
-                              WidgetsBinding.instance.addPostFrameCallback((_) {
-                                _enterKeyHandled = false;
-                              });
-                            }
+                    onDoubleTap: () {
+                      widget.urlController.selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset: widget.urlController.text.length,
+                      );
+                    },
+                    child: RawKeyboardListener(
+                      focusNode: FocusNode(),
+                      onKey: (RawKeyEvent event) {
+                        if (event is RawKeyDownEvent) {
+                          final logicalKey = event.logicalKey;
+                          if (logicalKey == LogicalKeyboardKey.arrowUp) {
+                            widget.onArrowUp?.call();
+                          } else if (logicalKey == LogicalKeyboardKey.arrowDown) {
+                            widget.onArrowDown?.call();
+                          } else if (logicalKey == LogicalKeyboardKey.enter) {
+                            _enterKeyHandled = true;
+                            widget.onEnterKey?.call();
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              _enterKeyHandled = false;
+                            });
                           }
+                        }
+                      },
+                      child: TextField(
+                        controller: widget.urlController,
+                        onSubmitted: (value) {
+                          if (_enterKeyHandled) return;
+                          widget.onHideSuggestions();
+                          widget.onNavigateToUrl(value);
                         },
-                        child: TextField(
-                          controller: widget.urlController,
-                          onSubmitted: (value) {
-                            // Don't handle submission if we already handled the Enter key
-                            if (_enterKeyHandled) return;
-                            widget.onHideSuggestions();
-                            widget.onNavigateToUrl(value);
-                          },
-                    textAlignVertical: TextAlignVertical.center,
-                    style: TextStyle(
-                      color: ShadTheme.of(context).colorScheme.foreground,
-                      height: 1.2,
-                    ),
-                    cursorColor: ShadTheme.of(context).colorScheme.primary,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: ShadTheme.of(context).colorScheme.background,
-                      hintText: 'Search or enter website URL...',
-                      hintStyle: TextStyle(color: ShadTheme.of(context).colorScheme.mutedForeground),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      prefixIcon: widget.currentFaviconUrl != null && widget.currentFaviconUrl!.isNotEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: Image.network(
-                                widget.currentFaviconUrl!,
-                                width: 16,
-                                height: 16,
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Icon(
-                                    HeroiconsOutline.globeAlt,
-                                    size: 16,
-                                    color: ShadTheme.of(context).colorScheme.mutedForeground,
-                                  );
-                                },
-                              ),
-                            ),
-                          )
-                        : Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Icon(
-                              HeroiconsOutline.globeAlt,
-                              size: 16,
-                              color: ShadTheme.of(context).colorScheme.mutedForeground,
-                            ),
+                      textAlignVertical: TextAlignVertical.center,
+                      style: TextStyle(
+                        color: ShadTheme.of(context).colorScheme.foreground,
+                        height: 1.2,
+                      ),
+                      cursorColor: ShadTheme.of(context).colorScheme.primary,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: ShadTheme.of(context).colorScheme.background,
+                        hintText: 'Search or enter website URL...',
+                        hintStyle: TextStyle(color: ShadTheme.of(context).colorScheme.mutedForeground),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Icon(
+                            HeroiconsOutline.globeAlt,
+                            size: 16,
+                            color: ShadTheme.of(context).colorScheme.mutedForeground,
                           ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: ShadTheme.of(context).colorScheme.border, width: 1),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: ShadTheme.of(context).colorScheme.primary, width: 1.5),
                         ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: ShadTheme.of(context).colorScheme.border, width: 1),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: ShadTheme.of(context).colorScheme.primary, width: 1.5),
                         ),
                       ),
                     ),
@@ -277,36 +278,28 @@ class BrowserAppBarState extends State<BrowserAppBar> {
                 ),
               ),
             ),
-            ),
-          outlinedIconButton(
-              onPressed: widget.onAddBookmark,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(HeroiconsOutline.bookmark, size: 14),
-                  Positioned(
-                    right: -2,
-                    bottom: -2,
-                    child: Icon(HeroiconsOutline.plus, size: 9, color: ShadTheme.of(context).colorScheme.primary),
-                  ),
-                ],
+          ),
+          outlinedIconButton(onPressed: widget.onAddBookmark, child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Icon(HeroiconsOutline.bookmark, size: 14),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Icon(HeroiconsOutline.plus, size: 9, color: ShadTheme.of(context).colorScheme.primary),
               ),
-            ),
-            MoveWindow(child: const SizedBox(width: 6)),
-            outlinedIconButton(onPressed: widget.onShowBookmarks, child: Icon(HeroiconsOutline.bookmark, size: 14)),
-            MoveWindow(child: const SizedBox(width: 6)),
-            outlinedIconButton(onPressed: widget.onShowHistory, child: Icon(HeroiconsOutline.clock, size: 14)),
-            MoveWindow(child: const SizedBox(width: 6)),
-            outlinedIconButton(onPressed: widget.onShowDownloads, child: Icon(HeroiconsOutline.arrowDownTray, size: 14)),
-            MoveWindow(child: const SizedBox(width: 6)),
-            outlinedIconButton(onPressed: widget.onToggleChat, child: Icon(HeroiconsOutline.cpuChip, size: 14)),
-            if (widget.onToggleHighlights != null) ...[
-              MoveWindow(child: const SizedBox(width: 6)),
-              outlinedIconButton(onPressed: widget.onToggleHighlights, child: Icon(HeroiconsOutline.eye, size: 14)),
             ],
-          ],
-        ),
-      ],
+          )),
+          const SizedBox(width: 6),
+          outlinedIconButton(onPressed: widget.onShowBookmarks, child: Icon(HeroiconsOutline.bookmark, size: 14)),
+          const SizedBox(width: 6),
+          outlinedIconButton(onPressed: widget.onShowHistory, child: Icon(HeroiconsOutline.clock, size: 14)),
+          const SizedBox(width: 6),
+          outlinedIconButton(onPressed: widget.onShowDownloads, child: Icon(HeroiconsOutline.arrowDownTray, size: 14)),
+          const SizedBox(width: 6),
+          outlinedIconButton(onPressed: widget.onToggleChat, child: Icon(HeroiconsOutline.cpuChip, size: 14)),
+        ],
+      ),
     );
   }
 }

@@ -38,7 +38,6 @@ void main(List<String> args) async {
     appWindow.size = initialSize;
     appWindow.alignment = Alignment.center;
     appWindow.title = "Lumin";
-    appWindow.maximize(); // Start in fullscreen
     appWindow.show();
 
     // Periodically check and save window size changes
@@ -69,16 +68,24 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late ThemeMode _currentThemeMode;
+  late ShadThemeData _currentLightTheme;
+  late ShadThemeData _currentDarkTheme;
 
   @override
   void initState() {
     super.initState();
     _currentThemeMode = _getThemeModeFromAppTheme(widget.settingsManager.appTheme);
+    _currentLightTheme = _buildLightTheme(widget.settingsManager.themeCustomization);
+    _currentDarkTheme = _buildDarkTheme(widget.settingsManager.themeCustomization);
 
     // Listen for theme changes
     widget.settingsManager.onSettingsChanged = () {
+      debugPrint('Theme settings changed - rebuilding themes');
+      debugPrint('Current theme customization: ${widget.settingsManager.themeCustomization.toJson()}');
       setState(() {
         _currentThemeMode = _getThemeModeFromAppTheme(widget.settingsManager.appTheme);
+        _currentLightTheme = _buildLightTheme(widget.settingsManager.themeCustomization);
+        _currentDarkTheme = _buildDarkTheme(widget.settingsManager.themeCustomization);
       });
     };
   }
@@ -94,19 +101,80 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  ShadThemeData _buildLightTheme(ThemeCustomization customization) {
+    ShadColorScheme baseScheme = const ShadZincColorScheme.light();
+
+    // Create a completely new color scheme with customized colors
+    final colorScheme = ShadColorScheme(
+      background: customization.backgroundColor ?? baseScheme.background,
+      foreground: baseScheme.foreground,
+      card: customization.backgroundColor ?? baseScheme.card,
+      cardForeground: baseScheme.cardForeground,
+      popover: baseScheme.popover,
+      popoverForeground: baseScheme.popoverForeground,
+      primary: customization.accentColor ?? baseScheme.primary,
+      primaryForeground: baseScheme.primaryForeground,
+      secondary: baseScheme.secondary,
+      secondaryForeground: baseScheme.secondaryForeground,
+      muted: baseScheme.muted,
+      mutedForeground: baseScheme.mutedForeground,
+      accent: customization.accentColor ?? baseScheme.accent,
+      accentForeground: baseScheme.accentForeground,
+      destructive: baseScheme.destructive,
+      destructiveForeground: baseScheme.destructiveForeground,
+      border: baseScheme.border,
+      input: baseScheme.input,
+      ring: customization.accentColor ?? baseScheme.ring,
+      selection: baseScheme.selection,
+    );
+
+    return ShadThemeData(
+      brightness: Brightness.light,
+      colorScheme: colorScheme,
+    );
+  }
+
+  ShadThemeData _buildDarkTheme(ThemeCustomization customization) {
+    ShadColorScheme baseScheme = const ShadZincColorScheme.dark();
+
+    // Create a completely new color scheme with customized colors
+    final colorScheme = ShadColorScheme(
+      background: customization.backgroundColor ?? baseScheme.background,
+      foreground: baseScheme.foreground,
+      card: customization.backgroundColor ?? baseScheme.card,
+      cardForeground: baseScheme.cardForeground,
+      popover: baseScheme.popover,
+      popoverForeground: baseScheme.popoverForeground,
+      primary: customization.accentColor ?? baseScheme.primary,
+      primaryForeground: baseScheme.primaryForeground,
+      secondary: baseScheme.secondary,
+      secondaryForeground: baseScheme.secondaryForeground,
+      muted: baseScheme.muted,
+      mutedForeground: baseScheme.mutedForeground,
+      accent: customization.accentColor ?? baseScheme.accent,
+      accentForeground: baseScheme.accentForeground,
+      destructive: baseScheme.destructive,
+      destructiveForeground: baseScheme.destructiveForeground,
+      border: baseScheme.border,
+      input: baseScheme.input,
+      ring: customization.accentColor ?? baseScheme.ring,
+      selection: baseScheme.selection,
+    );
+
+    return ShadThemeData(
+      brightness: Brightness.dark,
+      colorScheme: colorScheme,
+    );
+  }
+
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return ShadApp(
+      key: ValueKey('shad_app_${_currentThemeMode}_${_currentLightTheme.colorScheme.primary.value}_${_currentDarkTheme.colorScheme.primary.value}'),
       title: 'Lumin',
-      theme: ShadThemeData(
-        brightness: Brightness.light,
-        colorScheme: const ShadZincColorScheme.light(),
-      ),
-      darkTheme: ShadThemeData(
-        brightness: Brightness.dark,
-        colorScheme: const ShadZincColorScheme.dark(),
-      ),
+      theme: _currentLightTheme,
+      darkTheme: _currentDarkTheme,
       themeMode: _currentThemeMode,
       home: BrowserScreen(settingsManager: widget.settingsManager),
     );

@@ -17,6 +17,7 @@ class SettingsWindow extends StatefulWidget {
   final double scrollMinVelocity;
   final double scrollMaxVelocity;
   final AppTheme appTheme;
+  final ThemeCustomization themeCustomization;
   final AIProvider aiProvider;
   final String ollamaBaseUrl;
   final String ollamaModel;
@@ -36,6 +37,7 @@ class SettingsWindow extends StatefulWidget {
   final void Function(double scrollSpeed, bool smoothScrolling) onSettingsChanged;
   final void Function(double friction, double deceleration, double minVelocity, double maxVelocity) onScrollPhysicsChanged;
   final void Function(AppTheme theme) onThemeSettingsChanged;
+  final void Function(ThemeCustomization customization) onThemeCustomizationChanged;
   final void Function(String baseUrl, String model) onAISettingsChanged;
   final void Function(AIProvider provider, String apiKey, String model) onAIProviderSettingsChanged;
   final void Function(bool enabled) onAdBlockSettingsChanged;
@@ -51,6 +53,7 @@ class SettingsWindow extends StatefulWidget {
     required this.scrollMinVelocity,
     required this.scrollMaxVelocity,
     required this.appTheme,
+    required this.themeCustomization,
     required this.aiProvider,
     required this.ollamaBaseUrl,
     required this.ollamaModel,
@@ -70,6 +73,7 @@ class SettingsWindow extends StatefulWidget {
     required this.onSettingsChanged,
     required this.onScrollPhysicsChanged,
     required this.onThemeSettingsChanged,
+    required this.onThemeCustomizationChanged,
     required this.onAISettingsChanged,
     required this.onAIProviderSettingsChanged,
     required this.onAdBlockSettingsChanged,
@@ -89,6 +93,7 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
   late double _scrollMinVelocity;
   late double _scrollMaxVelocity;
   late AppTheme _appTheme;
+  late ThemeCustomization _themeCustomization;
   late AIProvider _aiProvider;
   late String _ollamaBaseUrl;
   late String _ollamaModel;
@@ -131,6 +136,7 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
     _scrollMinVelocity = widget.scrollMinVelocity;
     _scrollMaxVelocity = widget.scrollMaxVelocity;
     _appTheme = widget.appTheme;
+    _themeCustomization = widget.themeCustomization;
     _aiProvider = widget.aiProvider;
     _ollamaBaseUrl = widget.ollamaBaseUrl;
     _ollamaModel = widget.ollamaModel;
@@ -384,8 +390,12 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Theme Selection
+            // Basic Theme Selection
             _buildThemeSelection(),
+            const SizedBox(height: 24),
+
+            // Theme Customization
+            _buildThemeCustomization(),
           ],
         ),
       ),
@@ -468,6 +478,375 @@ class _SettingsWindowState extends State<SettingsWindow> with TickerProviderStat
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildThemeCustomization() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Theme Customization',
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Customize colors and appearance',
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
+        ),
+        const SizedBox(height: 16),
+
+        // Color Scheme Selection
+        _buildColorSchemeSelection(),
+        const SizedBox(height: 16),
+
+        // Accent Color Selection
+        _buildAccentColorSelection(),
+        const SizedBox(height: 16),
+
+        // Background Color Selection
+        _buildBackgroundColorSelection(),
+      ],
+    );
+  }
+
+  Widget _buildColorSchemeSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Color Scheme',
+          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Choose the base color palette for the interface',
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withOpacity(0.16)),
+          ),
+          child: Column(
+            children: ColorSchemeType.values.map((scheme) {
+              return RadioListTile<ColorSchemeType>(
+                title: Text(
+                  _getColorSchemeDisplayName(scheme),
+                  style: const TextStyle(color: Colors.white),
+                ),
+                subtitle: Text(
+                  _getColorSchemeDescription(scheme),
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+                value: scheme,
+                groupValue: _themeCustomization.colorScheme,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _themeCustomization = _themeCustomization.copyWith(colorScheme: value);
+                    });
+                    widget.onThemeCustomizationChanged(_themeCustomization);
+                  }
+                },
+                activeColor: Colors.blue,
+                dense: true,
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAccentColorSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Accent Color',
+          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Choose a custom accent color for buttons and highlights',
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white.withOpacity(0.16)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _themeCustomization.accentColor ?? Colors.blue,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _themeCustomization.accentColor != null
+                            ? '#${_themeCustomization.accentColor!.value.toRadixString(16).padLeft(8, '0').toUpperCase()}'
+                            : 'Default (Blue)',
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => _showColorPicker(true, _themeCustomization.accentColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.1),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: const Text('Pick Color'),
+            ),
+            if (_themeCustomization.accentColor != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _themeCustomization = _themeCustomization.copyWith(accentColor: null);
+                  });
+                  widget.onThemeCustomizationChanged(_themeCustomization);
+                },
+                icon: const Icon(Icons.clear, color: Colors.white70, size: 20),
+                tooltip: 'Reset to default',
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBackgroundColorSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Background Color',
+          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Customize the main background color',
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white.withOpacity(0.16)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: _themeCustomization.backgroundColor ?? Colors.black,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        _themeCustomization.backgroundColor != null
+                            ? '#${_themeCustomization.backgroundColor!.value.toRadixString(16).padLeft(8, '0').toUpperCase()}'
+                            : 'Default',
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => _showColorPicker(false, _themeCustomization.backgroundColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white.withOpacity(0.1),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+              child: const Text('Pick Color'),
+            ),
+            if (_themeCustomization.backgroundColor != null) ...[
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _themeCustomization = _themeCustomization.copyWith(backgroundColor: null);
+                  });
+                  widget.onThemeCustomizationChanged(_themeCustomization);
+                },
+                icon: const Icon(Icons.clear, color: Colors.white70, size: 20),
+                tooltip: 'Reset to default',
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  String _getColorSchemeDisplayName(ColorSchemeType scheme) {
+    switch (scheme) {
+      case ColorSchemeType.zinc:
+        return 'Zinc';
+      case ColorSchemeType.slate:
+        return 'Slate';
+      case ColorSchemeType.stone:
+        return 'Stone';
+      case ColorSchemeType.gray:
+        return 'Gray';
+      case ColorSchemeType.neutral:
+        return 'Neutral';
+      case ColorSchemeType.red:
+        return 'Red';
+      case ColorSchemeType.rose:
+        return 'Rose';
+      case ColorSchemeType.orange:
+        return 'Orange';
+      case ColorSchemeType.green:
+        return 'Green';
+      case ColorSchemeType.blue:
+        return 'Blue';
+      case ColorSchemeType.yellow:
+        return 'Yellow';
+      case ColorSchemeType.violet:
+        return 'Violet';
+    }
+  }
+
+  String _getColorSchemeDescription(ColorSchemeType scheme) {
+    switch (scheme) {
+      case ColorSchemeType.zinc:
+        return 'Balanced gray tones for a modern look';
+      case ColorSchemeType.slate:
+        return 'Cool blue-gray tones';
+      case ColorSchemeType.stone:
+        return 'Warm gray tones with subtle warmth';
+      case ColorSchemeType.gray:
+        return 'Classic neutral gray tones';
+      case ColorSchemeType.neutral:
+        return 'Pure neutral tones';
+      case ColorSchemeType.red:
+        return 'Bold red accent colors';
+      case ColorSchemeType.rose:
+        return 'Soft pink and rose tones';
+      case ColorSchemeType.orange:
+        return 'Warm orange and amber tones';
+      case ColorSchemeType.green:
+        return 'Fresh green and nature tones';
+      case ColorSchemeType.blue:
+        return 'Cool blue and ocean tones';
+      case ColorSchemeType.yellow:
+        return 'Bright yellow and gold tones';
+      case ColorSchemeType.violet:
+        return 'Purple and violet tones';
+    }
+  }
+
+  void _showColorPicker(bool isAccent, Color? currentColor) {
+    // For now, show a simple color picker dialog
+    // In a real implementation, you'd use a proper color picker package
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: Text(
+          isAccent ? 'Pick Accent Color' : 'Pick Background Color',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Simple color palette for now
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Colors.red,
+                Colors.pink,
+                Colors.purple,
+                Colors.deepPurple,
+                Colors.indigo,
+                Colors.blue,
+                Colors.lightBlue,
+                Colors.cyan,
+                Colors.teal,
+                Colors.green,
+                Colors.lightGreen,
+                Colors.lime,
+                Colors.yellow,
+                Colors.amber,
+                Colors.orange,
+                Colors.deepOrange,
+                Colors.brown,
+                Colors.grey,
+                Colors.blueGrey,
+                Colors.black,
+                Colors.white,
+              ].map((color) =>               GestureDetector(
+                onTap: () {
+                  debugPrint('Color selected: $color, isAccent: $isAccent');
+                  setState(() {
+                    if (isAccent) {
+                      _themeCustomization = _themeCustomization.copyWith(accentColor: color);
+                    } else {
+                      _themeCustomization = _themeCustomization.copyWith(backgroundColor: color);
+                    }
+                  });
+                  debugPrint('New theme customization: ${_themeCustomization.toJson()}');
+                  widget.onThemeCustomizationChanged(_themeCustomization);
+                  Navigator.of(context).pop();
+                },
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  ),
+                ),
+              )).toList(),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+          ),
+        ],
+      ),
     );
   }
 

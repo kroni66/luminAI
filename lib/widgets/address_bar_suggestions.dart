@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:heroicons_flutter/heroicons_flutter.dart';
@@ -71,7 +72,7 @@ class AddressBarSuggestions extends StatelessWidget {
   }
 }
 
-class _SuggestionItem extends StatelessWidget {
+class _SuggestionItem extends StatefulWidget {
   final HistoryEntry suggestion;
   final String query;
   final VoidCallback onTap;
@@ -85,28 +86,48 @@ class _SuggestionItem extends StatelessWidget {
   });
 
   @override
+  State<_SuggestionItem> createState() => _SuggestionItemState();
+}
+
+class _SuggestionItemState extends State<_SuggestionItem> {
+  bool _showFavicon = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Delay favicon loading to prioritize text rendering
+    Timer(const Duration(milliseconds: 50), () {
+      if (mounted) {
+        setState(() {
+          _showFavicon = true;
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Highlight the matching parts of the text
-    final urlSpans = _highlightMatches(suggestion.url, query);
-    final titleSpans = _highlightMatches(suggestion.title, query);
+    final urlSpans = _highlightMatches(widget.suggestion.url, widget.query);
+    final titleSpans = _highlightMatches(widget.suggestion.title, widget.query);
 
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            // Favicon or globe icon
+            // Favicon or globe icon (delayed loading for better performance)
             Container(
               width: 20,
               height: 20,
               margin: const EdgeInsets.only(right: 12),
-              child: suggestion.faviconUrl.isNotEmpty
+              child: _showFavicon && widget.suggestion.faviconUrl.isNotEmpty
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(3),
                       child: Image.network(
-                        suggestion.faviconUrl,
+                        widget.suggestion.faviconUrl,
                         width: 20,
                         height: 20,
                         fit: BoxFit.contain,
@@ -114,7 +135,7 @@ class _SuggestionItem extends StatelessWidget {
                           return Icon(
                             HeroiconsOutline.globeAlt,
                             size: 16,
-                            color: colors.mutedForeground,
+                            color: widget.colors.mutedForeground,
                           );
                         },
                       ),
@@ -122,7 +143,7 @@ class _SuggestionItem extends StatelessWidget {
                   : Icon(
                       HeroiconsOutline.globeAlt,
                       size: 16,
-                      color: colors.mutedForeground,
+                      color: widget.colors.mutedForeground,
                     ),
             ),
 
@@ -132,14 +153,14 @@ class _SuggestionItem extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Title (if available)
-                  if (suggestion.title.isNotEmpty)
+                  if (widget.suggestion.title.isNotEmpty)
                     RichText(
                       text: TextSpan(
                         children: titleSpans,
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: colors.foreground,
+                          color: widget.colors.foreground,
                           height: 1.2,
                         ),
                       ),
@@ -153,7 +174,7 @@ class _SuggestionItem extends StatelessWidget {
                       children: urlSpans,
                       style: TextStyle(
                         fontSize: 12,
-                        color: colors.mutedForeground,
+                        color: widget.colors.mutedForeground,
                         height: 1.3,
                       ),
                     ),
@@ -168,10 +189,10 @@ class _SuggestionItem extends StatelessWidget {
             Container(
               margin: const EdgeInsets.only(left: 8),
               child: Text(
-                _formatRelativeTime(suggestion.visitedAt),
+                _formatRelativeTime(widget.suggestion.visitedAt),
                 style: TextStyle(
                   fontSize: 11,
-                  color: colors.mutedForeground,
+                  color: widget.colors.mutedForeground,
                 ),
               ),
             ),
